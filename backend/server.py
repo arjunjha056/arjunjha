@@ -199,12 +199,16 @@ async def create_comment(post_id: str, data: CommentInput, user=Depends(current_
     return comment
 
 @api.get("/stories")
-async def list_stories():
+async def list_stories(request: Request):
+    try: user = await current_user(request)
+    except HTTPException: user = None
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     stories = await db.stories.find({"created_at": {"$gte": cutoff}}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    # Group by author
     grouped = {}
     for s in stories:
+        s["view_count"] = len(s.get("viewers", []))
+        if not user or s["author_id"] != user["id"]:
+            s.pop("viewers", None)
         aid = s["author_id"]
         if aid not in grouped:
             grouped[aid] = {"author_id": aid, "author": s["author"], "avatar": s.get("avatar", ""), "role": s.get("role", "student"), "stories": []}
@@ -218,6 +222,16 @@ async def create_story(data: StoryInput, user=Depends(current_user)):
     return story
 
 STORY_EMOJIS = {"❤️", "🔥", "👏", "😂", "😮"}
+
+@api.post("/stories/{story_id}/view")
+async def view_story(story_id: str, user=Depends(current_user)):
+    story = await db.stories.find_one({"id": story_id}, {"_id": 0})
+    if not story: raise HTTPException(404, "Story not found")
+    if story["author_id"] != user["id"] and not any(v["id"] == user["id"] for v in story.get("viewers", [])):
+        viewer = {"id": user["id"], "name": user["name"], "avatar": user.get("avatar", ""), "role": user["role"], "viewed_at": datetime.now(timezone.utc).isoformat()}
+        await db.stories.update_one({"id": story_id}, {"$push": {"viewers": viewer}})
+    updated = await db.stories.find_one({"id": story_id}, {"_id": 0})
+    return {"id": story_id, "view_count": len(updated.get("viewers", []))}
 
 @api.post("/stories/{story_id}/react")
 async def react_story(story_id: str, data: StoryReactInput, user=Depends(current_user)):

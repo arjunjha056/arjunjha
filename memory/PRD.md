@@ -14,6 +14,7 @@ Facebook/LinkedIn/Reddit-style academic social network for NSEC (Netaji Subhas E
 - Profile edit (avatar upload, relationship, department, bio, headline, interests)
 - Founders section: Oindrila Maity + Arjun Jha (real LinkedIn URLs, gmails, Arjun's AI-edited photo, June 2026)
 - Story emoji reactions (❤️🔥👏😂😮 toggle/switch) + trending "Most active this week" strip in directory (tested, iteration_3: 20/20 backend)
+- Story views: view tracking (deduped, author-only viewer list, "Viewed by N" panel, pauses auto-advance)
 - Teacher section roster: 5 NSEC faculty/staff + 80 community members (alphabetical, initial avatars)
 - Discover (search people/rooms/notes)
 - Client-side JS image compression (max 800px, JPEG q=60, never rejects)

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Routes, Route } from "react-router-dom";
-import { BookOpen, Compass, GraduationCap, Heart, Home, ImagePlus, Linkedin, LogIn, MessageCircle, MessageSquare, Plus, Search, Send, Shield, Sparkles, UserRound, Users, X, Building2, Flame } from "lucide-react";
+import { BookOpen, Compass, GraduationCap, Heart, Home, ImagePlus, Linkedin, LogIn, MessageCircle, MessageSquare, Plus, Search, Send, Shield, Sparkles, UserRound, Users, X, Building2, Flame, Eye } from "lucide-react";
 import "@/App.css";
 import { facultyRoster, memberRoster } from "@/roster";
 
@@ -135,14 +135,19 @@ function StoryViewer({ group, user, onClose, onNextGroup, onPrevGroup }) {
   const [idx, setIdx] = useState(0);
   const current = group.stories[idx];
   const [reactions, setReactions] = useState(current.reactions || {});
-  useEffect(() => { setReactions(group.stories[idx].reactions || {}); }, [idx, group]);
+  const [showViewers, setShowViewers] = useState(false);
+  useEffect(() => { setReactions(group.stories[idx].reactions || {}); setShowViewers(false); }, [idx, group]);
   useEffect(() => {
+    if (group.author_id !== user.id) api.post(`/stories/${group.stories[idx].id}/view`).catch(() => {});
+  }, [idx, group, user.id]);
+  useEffect(() => {
+    if (showViewers) return;
     const t = setTimeout(() => {
       if (idx < group.stories.length - 1) setIdx(idx + 1);
       else onNextGroup();
     }, 5000);
     return () => clearTimeout(t);
-  }, [idx, group, onNextGroup]);
+  }, [idx, group, onNextGroup, showViewers]);
   const react = async emoji => {
     try {
       const r = await api.post(`/stories/${current.id}/react`, { emoji });
@@ -179,6 +184,28 @@ function StoryViewer({ group, user, onClose, onNextGroup, onPrevGroup }) {
             </button>
           ))}
         </div>
+        {group.author_id === user.id && (
+          <button className="story-views-btn" onClick={ev => { ev.stopPropagation(); setShowViewers(v => !v); }} data-testid="story-views-button">
+            <Eye size={15}/> {(current.viewers || []).length}
+          </button>
+        )}
+        {showViewers && (
+          <div className="story-viewers-panel" onClick={ev => ev.stopPropagation()} data-testid="story-viewers-panel">
+            <div className="story-viewers-title"><Eye size={14}/> Viewed by {(current.viewers || []).length}</div>
+            <div className="story-viewers-list">
+              {(current.viewers || []).slice().reverse().map(v => (
+                <div className="story-viewer-row" key={v.id} data-testid="story-viewer-row">
+                  <div className="avatar small">{v.avatar ? <img src={v.avatar} alt=""/> : v.name[0]}</div>
+                  <div className="story-viewer-meta">
+                    <strong>{v.name}</strong>
+                    <small>{timeAgo(v.viewed_at)} ago · {v.role}</small>
+                  </div>
+                </div>
+              ))}
+              {(current.viewers || []).length === 0 && <div className="story-viewers-empty">No views yet — share it around!</div>}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

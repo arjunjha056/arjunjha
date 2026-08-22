@@ -323,3 +323,13 @@ nav{display:grid;gap:4px;padding-top:22px}
 .roster-info strong{font-size:13px}
 .roster-info small{font-size:11px;color:var(--muted,#9ca3af);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .roster-info .role-badge{align-self:flex-start}
+.story-views-btn{position:absolute;bottom:16px;left:14px;z-index:7;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 13px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:background-color .15s}
+.story-views-btn:hover{background:rgba(0,0,0,.8)}
+.story-viewers-panel{position:absolute;bottom:0;left:0;right:0;max-height:55%;background:rgba(10,10,14,.96);backdrop-filter:blur(14px);border-top:1px solid rgba(255,255,255,.12);border-radius:16px 16px 0 0;z-index:8;padding:16px;display:flex;flex-direction:column;gap:12px}
+.story-viewers-title{display:flex;align-items:center;gap:7px;color:#fff;font-size:13px;font-weight:700;letter-spacing:.03em}
+.story-viewers-list{overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.story-viewer-row{display:flex;align-items:center;gap:11px}
+.story-viewer-meta{display:flex;flex-direction:column;gap:1px}
+.story-viewer-meta strong{color:#fff;font-size:13px}
+.story-viewer-meta small{color:rgba(255,255,255,.6);font-size:11px}
+.story-viewers-empty{color:rgba(255,255,255,.55);font-size:13px;padding:8px 0}
