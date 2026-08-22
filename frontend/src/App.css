@@ -99,7 +99,7 @@ nav{display:grid;gap:4px;padding-top:22px}
 .story-modal{position:fixed;inset:0;background:rgba(5,8,15,.94);z-index:100;display:grid;place-items:center;padding:20px;animation:fade .2s}
 .story-frame{width:min(420px,92vw);height:min(720px,88vh);background:#000;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .story-frame img{width:100%;height:100%;object-fit:cover;display:block}
-.story-header{position:absolute;top:0;left:0;right:0;padding:14px 16px;background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);display:flex;align-items:center;gap:12px;z-index:2}
+.story-header{position:absolute;top:0;left:0;right:0;padding:14px 16px;background:linear-gradient(180deg,rgba(0,0,0,.6),transparent);display:flex;align-items:center;gap:12px;z-index:7}
 .story-progress{position:absolute;top:6px;left:16px;right:16px;display:flex;gap:4px;z-index:3}
 .story-progress span{flex:1;height:3px;background:rgba(255,255,255,.3);border-radius:2px;overflow:hidden}
 .story-progress span.active::after{content:"";display:block;height:100%;background:#fff;animation:progress 5s linear forwards}
@@ -295,3 +295,31 @@ nav{display:grid;gap:4px;padding-top:22px}
   .profile-fields label:last-child{grid-column:auto}
   .topbar{padding:0 20px}
 }
+.story-reactions{position:absolute;bottom:14px;left:0;right:0;display:flex;justify-content:center;gap:10px;z-index:6}
+.story-react-btn{display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:7px 12px;font-size:17px;cursor:pointer;transition:transform .15s,background-color .15s,border-color .15s;color:#fff}
+.story-react-btn:hover{transform:scale(1.15)}
+.story-react-btn.active{background:rgba(59,130,246,.35);border-color:var(--blue)}
+.story-react-btn span{font-size:12px;font-weight:700}
+.story-caption{bottom:62px !important}
+.trending-strip{background:linear-gradient(135deg,rgba(255,69,0,.10),rgba(59,130,246,.06));border:1px solid rgba(255,69,0,.25);border-radius:14px;padding:14px 16px;margin-bottom:20px}
+.trending-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#ff6b3d;margin-bottom:12px}
+.trending-scroll{display:flex;gap:12px;overflow-x:auto;padding-bottom:4px}
+.trending-card{display:flex;align-items:center;gap:10px;background:var(--card-2,rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 14px;min-width:200px;flex-shrink:0;transition:border-color .15s,transform .15s}
+.trending-card:hover{border-color:#ff6b3d;transform:translateY(-2px)}
+.trending-rank{font-size:13px;font-weight:800;color:#ff6b3d}
+.trending-info{display:flex;flex-direction:column;gap:2px}
+.trending-info strong{font-size:13.5px}
+.trending-info small{font-size:11.5px;color:var(--muted,#9ca3af)}
+.roster-block{margin-top:34px}
+.roster-heading{font-size:15px;font-weight:700;letter-spacing:.04em;margin:26px 0 14px;display:flex;align-items:center;gap:8px}
+.roster-count{font-size:11px;font-weight:700;background:rgba(59,130,246,.2);color:var(--blue,#3b82f6);border-radius:999px;padding:2px 9px}
+.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.roster-card{display:flex;align-items:center;gap:11px;background:var(--card-2,rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:10px 13px;transition:border-color .15s}
+.roster-card:hover{border-color:rgba(59,130,246,.5)}
+.roster-card.faculty{border-color:rgba(250,204,21,.25)}
+.roster-card.faculty:hover{border-color:rgba(250,204,21,.6)}
+.roster-avatar{flex-shrink:0}
+.roster-info{display:flex;flex-direction:column;gap:2px;min-width:0}
+.roster-info strong{font-size:13px}
+.roster-info small{font-size:11px;color:var(--muted,#9ca3af);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roster-info .role-badge{align-self:flex-start}

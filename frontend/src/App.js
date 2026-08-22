@@ -1,14 +1,15 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Routes, Route } from "react-router-dom";
-import { BookOpen, Compass, GraduationCap, Heart, Home, ImagePlus, Linkedin, LogIn, MessageCircle, MessageSquare, Plus, Search, Send, Shield, Sparkles, UserRound, Users, X, Building2 } from "lucide-react";
+import { BookOpen, Compass, GraduationCap, Heart, Home, ImagePlus, Linkedin, LogIn, MessageCircle, MessageSquare, Plus, Search, Send, Shield, Sparkles, UserRound, Users, X, Building2, Flame } from "lucide-react";
 import "@/App.css";
+import { facultyRoster, memberRoster } from "@/roster";
 
 const api = axios.create({ baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`, withCredentials: true });
 
 const founderData = [
-  { name: "Oindrila Maity", role: "Co-Founder", email: "oindrila@nsec.edu", linkedin: "https://www.linkedin.com/in/oindrila-maity-a19b02405", initial: "O" },
-  { name: "Arjun Jha", role: "Co-Founder", email: "arjunjha056@gmail.com", linkedin: "https://www.linkedin.com/in/arjun-jha-639b29428", initial: "A" },
+  { name: "Oindrila Maity", role: "Co-Founder", email: "oindrilamaity07@gmail.com", linkedin: "https://www.linkedin.com/in/oindrila-maity-a19b02405", initial: "O", photo: "" },
+  { name: "Arjun Jha", role: "Co-Founder", email: "arjunjha056@gmail.com", linkedin: "https://www.linkedin.com/in/arjun-jha-639b29428", initial: "A", photo: "https://static.prod-images.emergentagent.com/jobs/a170f44a-5d6c-4d61-8c15-cf06b2c28caa/images/10d6ea77843c9a711e883f85e241dc8ce656c13739328c5abf207e32ab45698d.jpeg" },
 ];
 
 const fallbackRooms = [
@@ -128,8 +129,13 @@ function StoryComposer({ onClose, onSaved }) {
   );
 }
 
-function StoryViewer({ group, onClose, onNextGroup, onPrevGroup }) {
+const STORY_EMOJIS = [["heart", "❤️"], ["fire", "🔥"], ["clap", "👏"], ["laugh", "😂"], ["wow", "😮"]];
+
+function StoryViewer({ group, user, onClose, onNextGroup, onPrevGroup }) {
   const [idx, setIdx] = useState(0);
+  const current = group.stories[idx];
+  const [reactions, setReactions] = useState(current.reactions || {});
+  useEffect(() => { setReactions(group.stories[idx].reactions || {}); }, [idx, group]);
   useEffect(() => {
     const t = setTimeout(() => {
       if (idx < group.stories.length - 1) setIdx(idx + 1);
@@ -137,7 +143,13 @@ function StoryViewer({ group, onClose, onNextGroup, onPrevGroup }) {
     }, 5000);
     return () => clearTimeout(t);
   }, [idx, group, onNextGroup]);
-  const current = group.stories[idx];
+  const react = async emoji => {
+    try {
+      const r = await api.post(`/stories/${current.id}/react`, { emoji });
+      current.reactions = r.data.reactions;
+      setReactions(r.data.reactions);
+    } catch { /* keep viewer open on failure */ }
+  };
   const back = () => { if (idx > 0) setIdx(idx - 1); else onPrevGroup(); };
   const next = () => { if (idx < group.stories.length - 1) setIdx(idx + 1); else onNextGroup(); };
   return (
@@ -160,6 +172,13 @@ function StoryViewer({ group, onClose, onNextGroup, onPrevGroup }) {
         <button className="story-nav right" onClick={next} data-testid="story-next-button"/>
         <img src={current.image} alt="Story"/>
         {current.caption && <div className="story-caption">{current.caption}</div>}
+        <div className="story-reactions" data-testid="story-reactions">
+          {STORY_EMOJIS.map(([key, e]) => (
+            <button key={key} className={`story-react-btn ${(reactions[e] || []).includes(user.id) ? "active" : ""}`} onClick={ev => { ev.stopPropagation(); react(e); }} data-testid={`story-react-${key}`}>
+              {e}{(reactions[e] || []).length > 0 && <span>{reactions[e].length}</span>}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -195,6 +214,7 @@ function StoriesBar({ user, groups, onRefresh }) {
       {viewingIdx !== null && ordered[viewingIdx] && (
         <StoryViewer
           group={ordered[viewingIdx]}
+          user={user}
           onClose={() => setViewingIdx(null)}
           onNextGroup={() => setViewingIdx(viewingIdx + 1 < ordered.length ? viewingIdx + 1 : null)}
           onPrevGroup={() => setViewingIdx(viewingIdx > 0 ? viewingIdx - 1 : viewingIdx)}
@@ -457,13 +477,34 @@ function Discovery() {
 
 function DirectoryView() {
   const [people, setPeople] = useState([]);
+  const [trending, setTrending] = useState([]);
   const [filter, setFilter] = useState("all");
   const [q, setQ] = useState("");
-  useEffect(() => { api.get("/discover").then(r => setPeople(r.data.people)); }, []);
+  useEffect(() => {
+    api.get("/discover").then(r => setPeople(r.data.people));
+    api.get("/directory/trending").then(r => setTrending(r.data));
+  }, []);
   const filtered = people.filter(p => (filter === "all" || p.role === filter) && (!q || (p.name + " " + (p.department || "") + " " + (p.headline || "")).toLowerCase().includes(q.toLowerCase())));
   const counts = { all: people.length, student: people.filter(p => p.role === "student").length, teacher: people.filter(p => p.role === "teacher").length, founder: people.filter(p => p.role === "founder").length };
   return (
     <Section title="NSEC Directory" eyebrow="COLLEGE DIRECTORY / EVERYONE AT NSEC" intro="Track every member studying, teaching, or building at Netaji Subhas Engineering College.">
+      {trending.length > 0 && (
+        <div className="trending-strip" data-testid="trending-strip">
+          <div className="trending-label"><Flame size={15}/> Most active this week</div>
+          <div className="trending-scroll">
+            {trending.map((p, i) => (
+              <div className="trending-card" key={p.id} data-testid={`trending-card-${i}`}>
+                <span className="trending-rank">#{i + 1}</span>
+                <div className="avatar small">{p.avatar ? <img src={p.avatar} alt=""/> : p.name[0]}</div>
+                <div className="trending-info">
+                  <strong>{p.name}</strong>
+                  <small>{p.activity} action{p.activity === 1 ? "" : "s"} · {p.role}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="directory-filters" data-testid="directory-filters">
         <button className={filter === "all" ? "chip active" : "chip"} onClick={() => setFilter("all")} data-testid="dir-filter-all">All <span>{counts.all}</span></button>
         <button className={filter === "student" ? "chip active" : "chip"} onClick={() => setFilter("student")} data-testid="dir-filter-student">Students <span>{counts.student}</span></button>
@@ -607,6 +648,33 @@ function Shell({ user, onLogout, onUserChange }) {
                 })}
                 {updates.length === 0 && <div className="empty">No teaching notes yet.</div>}
               </div>
+              <div className="roster-block" data-testid="faculty-roster">
+                <h3 className="roster-heading">NSEC Faculty & Staff</h3>
+                <div className="roster-grid">
+                  {facultyRoster.map(f => (
+                    <div className="roster-card faculty" key={f.email} data-testid="faculty-roster-card">
+                      <div className="avatar small roster-avatar">{f.name[0]}</div>
+                      <div className="roster-info">
+                        <strong>{f.name}</strong>
+                        <span className="role-badge role-teacher">{f.title}</span>
+                        <small>{f.email}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <h3 className="roster-heading">Community Members <span className="roster-count">{memberRoster.length}</span></h3>
+                <div className="roster-grid" data-testid="member-roster">
+                  {[...memberRoster].sort((a, b) => a.name.localeCompare(b.name)).map(m => (
+                    <div className="roster-card" key={m.email} data-testid="member-roster-card">
+                      <div className="avatar small roster-avatar">{m.name[0]}</div>
+                      <div className="roster-info">
+                        <strong>{m.name}</strong>
+                        <small>{m.email}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </Section>
           )}
           {active === "discover" && <Discovery/>}
@@ -616,7 +684,7 @@ function Shell({ user, onLogout, onUserChange }) {
               <div className="founder-grid">
                 {founderData.map(f => (
                   <article className="founder" key={f.name} data-testid="founder-card">
-                    <div className="founder-photo">{f.initial}</div>
+                    <div className="founder-photo">{f.photo ? <img src={f.photo} alt={f.name}/> : f.initial}</div>
                     <div>
                       <p className="eyebrow">{f.role.toUpperCase()}</p>
                       <h3>{f.name}</h3>

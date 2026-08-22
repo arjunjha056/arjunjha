@@ -85,6 +85,9 @@ class StoryInput(BaseModel):
     image: str
     caption: Optional[str] = ""
 
+class StoryReactInput(BaseModel):
+    emoji: str
+
 class ForgotPasswordInput(BaseModel):
     email: EmailStr
 
@@ -210,9 +213,42 @@ async def list_stories():
 
 @api.post("/stories")
 async def create_story(data: StoryInput, user=Depends(current_user)):
-    story = {"id": str(uuid.uuid4()), "author_id": user["id"], "author": user["name"], "role": user["role"], "avatar": user.get("avatar", ""), "image": data.image, "caption": data.caption or "", "created_at": datetime.now(timezone.utc).isoformat()}
+    story = {"id": str(uuid.uuid4()), "author_id": user["id"], "author": user["name"], "role": user["role"], "avatar": user.get("avatar", ""), "image": data.image, "caption": data.caption or "", "reactions": {}, "created_at": datetime.now(timezone.utc).isoformat()}
     await db.stories.insert_one(story); story.pop("_id", None)
     return story
+
+STORY_EMOJIS = {"❤️", "🔥", "👏", "😂", "😮"}
+
+@api.post("/stories/{story_id}/react")
+async def react_story(story_id: str, data: StoryReactInput, user=Depends(current_user)):
+    if data.emoji not in STORY_EMOJIS: raise HTTPException(400, "Unsupported reaction")
+    story = await db.stories.find_one({"id": story_id}, {"_id": 0})
+    if not story: raise HTTPException(404, "Story not found")
+    reactions = story.get("reactions", {})
+    prev = next((e for e, ids in reactions.items() if user["id"] in ids), None)
+    if prev:
+        reactions[prev] = [i for i in reactions[prev] if i != user["id"]]
+        if not reactions[prev]: reactions.pop(prev)
+    if prev != data.emoji:
+        reactions.setdefault(data.emoji, []).append(user["id"])
+    await db.stories.update_one({"id": story_id}, {"$set": {"reactions": reactions}})
+    return {"id": story_id, "reactions": reactions}
+
+@api.get("/directory/trending")
+async def trending_directory():
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    counts = {}
+    for coll in (db.posts, db.comments, db.stories):
+        docs = await coll.find({"created_at": {"$gte": cutoff}}, {"_id": 0, "author_id": 1}).to_list(1000)
+        for d in docs:
+            aid = d.get("author_id")
+            if aid: counts[aid] = counts.get(aid, 0) + 1
+    top = sorted(counts.items(), key=lambda x: -x[1])[:8]
+    result = []
+    for aid, score in top:
+        u = await db.users.find_one({"id": aid}, {"password_hash": 0})
+        if u: result.append({**clean_user(u), "activity": score})
+    return result
 
 @api.get("/rooms")
 async def rooms():
