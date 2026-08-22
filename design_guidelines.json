@@ -1,0 +1,52 @@
+{
+  "app_name": "NSEC Academia Network (Netaji Subhas Engineering College)",
+  "context": "Hybrid Academic Social Platform (LinkedIn meets Reddit & Facebook for NSEC)",
+  "theme": {
+    "archetype": "Swiss & High-Contrast Academia",
+    "primary": "#0A2540",
+    "secondary": "#20639B",
+    "accent": "#F6D55C",
+    "background": "#F8FAFC",
+    "card_background": "#FFFFFF",
+    "text_primary": "#0F172A",
+    "text_secondary": "#475569"
+  },
+  "typography": {
+    "heading_font": "Outfit, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "hierarchy": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-extrabold",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-bold",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "body": "text-base leading-relaxed"
+    }
+  },
+  "components": [
+    {
+      "name": "AuthModal",
+      "purpose": "Email/password registration & login with role selection (Student, Teacher, Founder) + Google login & access issue help"
+    },
+    {
+      "name": "Feed",
+      "purpose": "Academic social feed with post creation, compressed picture upload (max 800px width, JPEG 60%), likes, comments, and relationship status on profiles"
+    },
+    {
+      "name": "DiscussionRooms",
+      "purpose": "Reddit-style subreddits for academic departments, clubs, hostel life, and placement talks"
+    },
+    {
+      "name": "TeacherUpdates",
+      "purpose": "Dedicated feed where teachers upload daily teaching logs, lecture notes, and assignment reminders"
+    },
+    {
+      "name": "FounderInfoSection",
+      "purpose": "Editable placeholders for Oildrila and Arjun Jha along with NSEC mission and access issue resolution hotline"
+    }
+  ],
+  "image_urls": {
+    "campus_building": "https://images.unsplash.com/photo-1591123120675-6f7f1aae0e5b?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "lecture_hall": "https://images.unsplash.com/photo-1758270704840-0ac001215b55?crop=entropy&cs=srgb&fm=jpg&q=85",
+    "professor_teaching": "https://images.unsplash.com/photo-1587691592099-24045742c181?crop=entropy&cs=srgb&fm=jpg&q=85"
+  },
+  "instructions_to_main_agent": "Build a robust full-stack React frontend and FastAPI backend for NSEC Academia Network. Ensure image compression (max 800px width, 60% JPEG quality on client/server), role-based access (Student, Teacher, Founder), relationship status display, discussion rooms, and editable founder placeholders for Oildrila and Arjun Jha. Add data-testid attributes to all interactive elements."
+}
