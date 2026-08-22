@@ -1,31 +1,32 @@
-# NSEC Academia Network PRD
+# NSEC Academia Network - PRD
 
-## Original problem statement
-Build a LinkedIn/Facebook/Reddit-inspired academic social network for Netaji Subhas Engineering College with registration, login, relationship status, picture upload, posts, discussion rooms, teacher daily teaching updates, founder information, access support, and automatic image compression.
+## Original Problem
+Facebook/LinkedIn/Reddit-style academic social network for NSEC (Netaji Subhas Engineering College) students, teachers and founders.
 
-## Architecture decisions
-- React frontend with React Router and Axios; FastAPI backend with MongoDB through the existing environment values.
-- Cookie-based JWT sessions for email/password auth and role-aware users: student, teacher, founder.
-- Client-side image compression to 800px maximum width and JPEG quality 60%; images are not rejected by size.
-- Founder contact details are intentionally editable placeholders until supplied.
+## Implemented (through Feb 2026)
+- Auth: register/login/logout, JWT refresh, password recovery, admin seed
+- Dark theme (near-black bg)
+- Feed with Facebook-blue accent (posts, likes toggle, comments, image compression 800px/JPEG 60)
+- Discussion Rooms with Reddit-red accent (rooms, replies, upvotes)
+- Instagram-style Stories (24h expiry, ring gradient, viewer, composer)
+- NSEC Directory (role filters: all/student/teacher/founder + search)
+- Teacher Updates (with image attachment)
+- Profile edit (avatar upload, relationship, department, bio, headline, interests)
+- Founders section: Oindrila + Arjun Jha (email + LinkedIn)
+- Discover (search people/rooms/notes)
+- Client-side JS image compression (max 800px, JPEG q=60, never rejects)
 
-## Personas and core requirements
-- Students: create profiles, share academic posts, browse rooms, and see teacher updates.
-- Teachers: publish what they taught today.
-- Founders/admins: access founder profile and community support information.
-- All users: sign up, sign in, sign out, view relationship status, and browse the campus feed.
+## Personas
+- Student, Teacher, Founder/Admin
 
-## Implemented — 2026-02-14
-- NSEC-branded auth screen with registration, login, role selection, access issue guidance, and Google OAuth placeholder.
-- Authenticated feed with post creation and compressed image attachments.
-- Discussion rooms, teacher updates view, founder/info view, responsive navigation, and seeded founder/admin test account.
-- FastAPI endpoints for auth, feed, rooms, and teacher updates.
-- Added room conversations with posts, replies, and thoughtful reactions.
-- Added editable profiles with photo compression, relationship status, department, biography, headline, and interests.
-- Added campus discovery search across people, rooms, departments, and teacher notes.
+## Backlog (P1)
+- Gmail OTP email verification (needs SMTP or Resend creds)
+- Real photo/LinkedIn URLs for founders
+- Teacher PDF upload support
+- Real Google OAuth wiring
+- Story delete + view counts
 
-## Prioritized backlog
-- P0: Google OAuth credentials and real OAuth callback flow.
-- P1: deeper moderation tools and richer room conversation controls.
-- P1: teacher update creation form and founder editing controls.
-- P2: cloud object storage for image attachments, notifications, search, and moderation.
+## Key Files
+- /app/backend/server.py (FastAPI + Mongo)
+- /app/frontend/src/App.js (all React views)
+- /app/frontend/src/App.css (dark theme + section accents)

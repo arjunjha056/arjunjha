@@ -21,18 +21,25 @@ def clean_user(user):
     if not user: return None
     return {"id": str(user.get("id", user.get("_id"))), "name": user["name"], "email": user["email"], "role": user["role"], "relationship": user.get("relationship", "Single"), "avatar": user.get("avatar", ""), "department": user.get("department", ""), "bio": user.get("bio", ""), "headline": user.get("headline", ""), "interests": user.get("interests", [])}
 
-def token_for(user):
-    return jwt.encode({"sub": str(user["id"]), "exp": datetime.now(timezone.utc) + timedelta(hours=12)}, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
+def token_for(user, token_type="access"):
+    lifetime = timedelta(minutes=15) if token_type == "access" else timedelta(days=7)
+    return jwt.encode({"sub": str(user["id"]), "email": user["email"], "type": token_type, "exp": datetime.now(timezone.utc) + lifetime}, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
+
+def set_auth_cookies(response, user):
+    response.set_cookie("access_token", token_for(user, "access"), httponly=True, samesite="lax", max_age=900, path="/")
+    response.set_cookie("refresh_token", token_for(user, "refresh"), httponly=True, samesite="lax", max_age=604800, path="/")
 
 async def current_user(request: Request):
     token = request.cookies.get("access_token")
     if not token and request.headers.get("Authorization", "").startswith("Bearer "):
         token = request.headers["Authorization"][7:]
     if not token: raise HTTPException(401, "Please sign in to continue")
-    try: payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
+    try:
+        payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access": raise HTTPException(401, "Invalid session type")
+    except HTTPException: raise
     except jwt.InvalidTokenError: raise HTTPException(401, "Your session has expired")
-    user = await db.users.find_one({"_id": payload["sub"]})
-    if not user: user = await db.users.find_one({"id": payload["sub"]})
+    user = await db.users.find_one({"id": payload["sub"]})
     if not user: raise HTTPException(401, "Account not found")
     return user
 
@@ -71,6 +78,20 @@ class RoomPostInput(BaseModel):
     body: str = Field(min_length=1, max_length=2000)
     parent_id: Optional[str] = None
 
+class CommentInput(BaseModel):
+    body: str = Field(min_length=1, max_length=800)
+
+class StoryInput(BaseModel):
+    image: str
+    caption: Optional[str] = ""
+
+class ForgotPasswordInput(BaseModel):
+    email: EmailStr
+
+class ResetPasswordInput(BaseModel):
+    token: str
+    password: str = Field(min_length=6)
+
 @api.get("/")
 async def root(): return {"message": "NSEC Academia Network"}
 
@@ -81,22 +102,51 @@ async def register(data: RegisterInput, response: Response):
     role = data.role.lower() if data.role.lower() in {"student", "teacher", "founder"} else "student"
     user = {"id": str(uuid.uuid4()), "name": data.name, "email": email, "role": role, "relationship": "Single", "avatar": "", "password_hash": bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode(), "created_at": datetime.now(timezone.utc).isoformat()}
     await db.users.insert_one(user)
-    response.set_cookie("access_token", token_for(user), httponly=True, samesite="lax", max_age=43200)
+    set_auth_cookies(response, user)
     return clean_user(user)
 
 @api.post("/auth/login")
 async def login(data: LoginInput, response: Response):
     user = await db.users.find_one({"email": data.email.lower()})
     if not user or not bcrypt.checkpw(data.password.encode(), user["password_hash"].encode()): raise HTTPException(401, "Email or password is incorrect")
-    response.set_cookie("access_token", token_for(user), httponly=True, samesite="lax", max_age=43200)
+    set_auth_cookies(response, user)
     return clean_user(user)
 
 @api.post("/auth/logout")
 async def logout(response: Response):
-    response.delete_cookie("access_token"); return {"ok": True}
+    response.delete_cookie("access_token", path="/"); response.delete_cookie("refresh_token", path="/"); return {"ok": True}
 
 @api.get("/auth/me")
 async def me(user=Depends(current_user)): return clean_user(user)
+
+@api.post("/auth/refresh")
+async def refresh(request: Request, response: Response):
+    token = request.cookies.get("refresh_token")
+    if not token: raise HTTPException(401, "Refresh session not found")
+    try: payload = jwt.decode(token, os.environ["JWT_SECRET"], algorithms=[JWT_ALGORITHM])
+    except jwt.InvalidTokenError: raise HTTPException(401, "Refresh session has expired")
+    if payload.get("type") != "refresh": raise HTTPException(401, "Invalid refresh session")
+    user = await db.users.find_one({"id": payload.get("sub")})
+    if not user: raise HTTPException(401, "Account not found")
+    response.set_cookie("access_token", token_for(user, "access"), httponly=True, samesite="lax", max_age=900, path="/")
+    return {"ok": True}
+
+@api.post("/auth/forgot-password")
+async def forgot_password(data: ForgotPasswordInput):
+    user = await db.users.find_one({"email": data.email.lower()})
+    if user:
+        reset_token = uuid.uuid4().hex
+        await db.password_reset_tokens.insert_one({"token": reset_token, "user_id": user["id"], "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(), "used": False})
+    return {"message": "If an account exists, recovery instructions have been created."}
+
+@api.post("/auth/reset-password")
+async def reset_password(data: ResetPasswordInput):
+    record = await db.password_reset_tokens.find_one({"token": data.token, "used": False})
+    if not record or datetime.fromisoformat(record["expires_at"]) < datetime.now(timezone.utc): raise HTTPException(400, "This recovery link is invalid or expired")
+    hashed = bcrypt.hashpw(data.password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"id": record["user_id"]}, {"$set": {"password_hash": hashed}})
+    await db.password_reset_tokens.update_one({"token": data.token}, {"$set": {"used": True}})
+    return {"message": "Password updated. You can now sign in."}
 
 @api.put("/profile")
 async def update_profile(data: ProfileInput, user=Depends(current_user)):
@@ -105,15 +155,64 @@ async def update_profile(data: ProfileInput, user=Depends(current_user)):
     user.update(changes)
     return clean_user(user)
 
+def _post_shape(post):
+    post.pop("_id", None)
+    post["like_count"] = len(post.get("liked_by", []))
+    post["comment_count"] = post.get("comment_count", 0)
+    return post
+
 @api.get("/feed")
 async def feed():
-    docs = await db.posts.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
-    return docs
+    docs = await db.posts.find({}).sort("created_at", -1).to_list(50)
+    return [_post_shape(d) for d in docs]
 
 @api.post("/feed")
 async def create_post(data: PostInput, user=Depends(current_user)):
-    post = {"id": str(uuid.uuid4()), "author": user["name"], "role": user["role"], "avatar": user.get("avatar", ""), "body": data.body, "image": data.image or "", "likes": 0, "created_at": datetime.now(timezone.utc).isoformat()}
-    await db.posts.insert_one(post); post.pop("_id", None); return post
+    post = {"id": str(uuid.uuid4()), "author_id": user["id"], "author": user["name"], "role": user["role"], "avatar": user.get("avatar", ""), "body": data.body, "image": data.image or "", "liked_by": [], "comment_count": 0, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.posts.insert_one(post); return _post_shape(post)
+
+@api.post("/feed/{post_id}/like")
+async def like_post(post_id: str, user=Depends(current_user)):
+    post = await db.posts.find_one({"id": post_id})
+    if not post: raise HTTPException(404, "Post not found")
+    liked = user["id"] in post.get("liked_by", [])
+    op = {"$pull": {"liked_by": user["id"]}} if liked else {"$addToSet": {"liked_by": user["id"]}}
+    await db.posts.update_one({"id": post_id}, op)
+    updated = await db.posts.find_one({"id": post_id})
+    return _post_shape(updated)
+
+@api.get("/feed/{post_id}/comments")
+async def list_comments(post_id: str):
+    comments = await db.comments.find({"post_id": post_id}, {"_id": 0}).sort("created_at", 1).to_list(200)
+    return comments
+
+@api.post("/feed/{post_id}/comments")
+async def create_comment(post_id: str, data: CommentInput, user=Depends(current_user)):
+    post = await db.posts.find_one({"id": post_id})
+    if not post: raise HTTPException(404, "Post not found")
+    comment = {"id": str(uuid.uuid4()), "post_id": post_id, "author_id": user["id"], "author": user["name"], "role": user["role"], "avatar": user.get("avatar", ""), "body": data.body, "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.comments.insert_one(comment); comment.pop("_id", None)
+    await db.posts.update_one({"id": post_id}, {"$inc": {"comment_count": 1}})
+    return comment
+
+@api.get("/stories")
+async def list_stories():
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    stories = await db.stories.find({"created_at": {"$gte": cutoff}}, {"_id": 0}).sort("created_at", -1).to_list(200)
+    # Group by author
+    grouped = {}
+    for s in stories:
+        aid = s["author_id"]
+        if aid not in grouped:
+            grouped[aid] = {"author_id": aid, "author": s["author"], "avatar": s.get("avatar", ""), "role": s.get("role", "student"), "stories": []}
+        grouped[aid]["stories"].append(s)
+    return list(grouped.values())
+
+@api.post("/stories")
+async def create_story(data: StoryInput, user=Depends(current_user)):
+    story = {"id": str(uuid.uuid4()), "author_id": user["id"], "author": user["name"], "role": user["role"], "avatar": user.get("avatar", ""), "image": data.image, "caption": data.caption or "", "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.stories.insert_one(story); story.pop("_id", None)
+    return story
 
 @api.get("/rooms")
 async def rooms():
@@ -169,11 +268,13 @@ async def create_teacher_update(data: TeacherInput, user=Depends(current_user)):
     await db.teacher_updates.insert_one(update); update.pop("_id", None); return update
 
 app.include_router(api)
-app.add_middleware(CORSMiddleware, allow_origins=["https://nsec-community.preview.emergentagent.com", "http://localhost:3000"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 @app.on_event("startup")
 async def setup():
     await db.users.create_index("email", unique=True)
+    await db.password_reset_tokens.create_index("expires_at")
+    await db.stories.create_index("created_at")
     if not await db.users.find_one({"email": "admin@nsec.edu"}):
         password = os.environ.get("ADMIN_PASSWORD", "nsec-admin-2026")
         await db.users.insert_one({"id": str(uuid.uuid4()), "name":"NSEC Admin", "email":"admin@nsec.edu", "role":"founder", "relationship":"NSEC community", "avatar":"", "password_hash":bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()})
