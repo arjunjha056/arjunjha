@@ -12,7 +12,7 @@ Facebook/LinkedIn/Reddit-style academic social network for NSEC (Netaji Subhas E
 - NSEC Directory (role filters: all/student/teacher/founder + search)
 - Teacher Updates (with image attachment)
 - Profile edit (avatar upload, relationship, department, bio, headline, interests)
-- Founders section: Oindrila + Arjun Jha (email + LinkedIn)
+- Founders section: Oindrila Maity + Arjun Jha (real LinkedIn URLs + arjunjha056@gmail.com, June 2026)
 - Discover (search people/rooms/notes)
 - Client-side JS image compression (max 800px, JPEG q=60, never rejects)
 

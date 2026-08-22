@@ -7,8 +7,8 @@ import "@/App.css";
 const api = axios.create({ baseURL: `${process.env.REACT_APP_BACKEND_URL}/api`, withCredentials: true });
 
 const founderData = [
-  { name: "Oindrila", role: "Co-Founder", email: "oindrila@nsec.edu", linkedin: "https://linkedin.com/in/oindrila", initial: "O" },
-  { name: "Arjun Jha", role: "Co-Founder", email: "arjunjha056@nsec.edu", linkedin: "https://linkedin.com/in/arjunjha056", initial: "A" },
+  { name: "Oindrila Maity", role: "Co-Founder", email: "oindrila@nsec.edu", linkedin: "https://www.linkedin.com/in/oindrila-maity-a19b02405", initial: "O" },
+  { name: "Arjun Jha", role: "Co-Founder", email: "arjunjha056@gmail.com", linkedin: "https://www.linkedin.com/in/arjun-jha-639b29428", initial: "A" },
 ];
 
 const fallbackRooms = [
