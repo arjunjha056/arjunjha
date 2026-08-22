@@ -19,7 +19,7 @@ JWT_ALGORITHM = "HS256"
 
 def clean_user(user):
     if not user: return None
-    return {"id": str(user.get("_id", user.get("id"))), "name": user["name"], "email": user["email"], "role": user["role"], "relationship": user.get("relationship", "Single"), "avatar": user.get("avatar", "")}
+    return {"id": str(user.get("id", user.get("_id"))), "name": user["name"], "email": user["email"], "role": user["role"], "relationship": user.get("relationship", "Single"), "avatar": user.get("avatar", ""), "department": user.get("department", ""), "bio": user.get("bio", ""), "headline": user.get("headline", ""), "interests": user.get("interests", [])}
 
 def token_for(user):
     return jwt.encode({"sub": str(user["id"]), "exp": datetime.now(timezone.utc) + timedelta(hours=12)}, os.environ["JWT_SECRET"], algorithm=JWT_ALGORITHM)
@@ -58,6 +58,19 @@ class TeacherInput(BaseModel):
     topic: str
     details: str
 
+class ProfileInput(BaseModel):
+    name: str = Field(min_length=2, max_length=80)
+    relationship: str = Field(default="Single", max_length=40)
+    department: str = Field(default="", max_length=100)
+    bio: str = Field(default="", max_length=500)
+    headline: str = Field(default="", max_length=120)
+    interests: List[str] = Field(default_factory=list, max_length=8)
+    avatar: str = ""
+
+class RoomPostInput(BaseModel):
+    body: str = Field(min_length=1, max_length=2000)
+    parent_id: Optional[str] = None
+
 @api.get("/")
 async def root(): return {"message": "NSEC Academia Network"}
 
@@ -85,6 +98,13 @@ async def logout(response: Response):
 @api.get("/auth/me")
 async def me(user=Depends(current_user)): return clean_user(user)
 
+@api.put("/profile")
+async def update_profile(data: ProfileInput, user=Depends(current_user)):
+    changes = data.model_dump()
+    await db.users.update_one({"id": user["id"]}, {"$set": changes})
+    user.update(changes)
+    return clean_user(user)
+
 @api.get("/feed")
 async def feed():
     docs = await db.posts.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
@@ -105,6 +125,39 @@ async def rooms():
 async def create_room(data: RoomInput, user=Depends(current_user)):
     room = {"id": str(uuid.uuid4()), "title": data.title, "description": data.description, "members": 1, "created_by": user["name"]}
     await db.rooms.insert_one(room); room.pop("_id", None); return room
+
+@api.get("/rooms/{room_id}/posts")
+async def room_posts(room_id: str):
+    posts = await db.room_posts.find({"room_id": room_id}, {"_id": 0}).sort("created_at", 1).to_list(200)
+    return posts
+
+@api.post("/rooms/{room_id}/posts")
+async def create_room_post(room_id: str, data: RoomPostInput, user=Depends(current_user)):
+    post = {"id": str(uuid.uuid4()), "room_id": room_id, "author": user["name"], "role": user["role"], "body": data.body, "parent_id": data.parent_id, "reactions": {"thoughtful": 0, "useful": 0}, "reacted_by": [], "created_at": datetime.now(timezone.utc).isoformat()}
+    await db.room_posts.insert_one(post); post.pop("_id", None); return post
+
+@api.post("/rooms/{room_id}/posts/{post_id}/react")
+async def react_to_room_post(room_id: str, post_id: str, user=Depends(current_user)):
+    post = await db.room_posts.find_one({"id": post_id, "room_id": room_id}, {"_id": 0})
+    if not post: raise HTTPException(404, "Discussion post not found")
+    reacted = user["id"] in post.get("reacted_by", [])
+    if reacted:
+        await db.room_posts.update_one({"id": post_id}, {"$pull": {"reacted_by": user["id"]}, "$inc": {"reactions.thoughtful": -1}})
+    else:
+        await db.room_posts.update_one({"id": post_id}, {"$addToSet": {"reacted_by": user["id"]}, "$inc": {"reactions.thoughtful": 1}})
+    updated = await db.room_posts.find_one({"id": post_id}, {"_id": 0})
+    return updated
+
+@api.get("/discover")
+async def discover(q: str = ""):
+    term = q.strip()
+    people_query = {"$or": [{"name": {"$regex": term, "$options": "i"}}, {"department": {"$regex": term, "$options": "i"}}, {"headline": {"$regex": term, "$options": "i"}}]} if term else {}
+    people = [clean_user(x) for x in await db.users.find(people_query, {"password_hash": 0}).to_list(50)]
+    rooms_list = await rooms()
+    if term: rooms_list = [r for r in rooms_list if term.lower() in (r.get("title", "") + r.get("description", "")).lower()]
+    updates = await db.teacher_updates.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)
+    if term: updates = [u for u in updates if term.lower() in (u.get("topic", "") + u.get("details", "")).lower()]
+    return {"people": people, "rooms": rooms_list, "updates": updates}
 
 @api.get("/teacher-updates")
 async def teacher_updates(): return await db.teacher_updates.find({}, {"_id": 0}).sort("created_at", -1).to_list(50)

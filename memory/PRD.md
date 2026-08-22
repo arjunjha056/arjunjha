@@ -20,9 +20,12 @@ Build a LinkedIn/Facebook/Reddit-inspired academic social network for Netaji Sub
 - Authenticated feed with post creation and compressed image attachments.
 - Discussion rooms, teacher updates view, founder/info view, responsive navigation, and seeded founder/admin test account.
 - FastAPI endpoints for auth, feed, rooms, and teacher updates.
+- Added room conversations with posts, replies, and thoughtful reactions.
+- Added editable profiles with photo compression, relationship status, department, biography, headline, and interests.
+- Added campus discovery search across people, rooms, departments, and teacher notes.
 
 ## Prioritized backlog
 - P0: Google OAuth credentials and real OAuth callback flow.
-- P1: comments, reactions, profile editing, relationship status editing, and room conversations.
+- P1: deeper moderation tools and richer room conversation controls.
 - P1: teacher update creation form and founder editing controls.
 - P2: cloud object storage for image attachments, notifications, search, and moderation.
